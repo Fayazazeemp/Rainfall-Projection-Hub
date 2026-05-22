@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
-import { Info, HelpCircle, AlertTriangle, CloudSun } from "lucide-react";
+import { Info, HelpCircle, AlertTriangle, CloudSun, Download } from "lucide-react";
 import { generateKeralaScenarioData, STATION_CLIMATOLOGIES } from "../data/monsoonData";
 import { Station } from "../types";
 
@@ -31,6 +31,128 @@ export default function Visualizer({ selectedStation }: VisualizerProps) {
 
   const chartData = getChartData();
   const stationClimatology = STATION_CLIMATOLOGIES[selectedStation.id] || STATION_CLIMATOLOGIES.tvm;
+
+  const exportToCSV = () => {
+    const headers = [
+      "Station",
+      "Year",
+      "Observed_Climatology_mm",
+      "AI_BiLSTM_Projected_mm",
+      "CMIP6_SSP1_26_mm",
+      "CMIP6_SSP2_45_mm",
+      "CMIP6_SSP5_85_mm"
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...chartData.map((d) => [
+        `"${selectedStation.name}"`,
+        d.year,
+        d.historical !== undefined && d.historical !== null ? d.historical : "",
+        d.projectedLSTM !== undefined && d.projectedLSTM !== null ? d.projectedLSTM : "",
+        d.cmip6_ssp126 !== undefined && d.cmip6_ssp126 !== null ? d.cmip6_ssp126 : "",
+        d.cmip6_ssp245 !== undefined && d.cmip6_ssp245 !== null ? d.cmip6_ssp245 : "",
+        d.cmip6_ssp585 !== undefined && d.cmip6_ssp585 !== null ? d.cmip6_ssp585 : ""
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${selectedStation.name.toLowerCase().replace(/\s+/g, "_")}_rainfall_projections_${zoomRange}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const year = data.year;
+
+      return (
+        <div className="bg-slate-900 border border-slate-700 text-white rounded-xl p-4 shadow-xl max-w-sm backdrop-blur-md bg-opacity-95 text-xs space-y-3 font-sans">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span className="font-bold text-sm text-slate-100 font-mono">Forecast Year: {year}</span>
+            <span className="text-[10px] text-indigo-400 bg-indigo-950/80 border border-indigo-900/60 px-2 py-0.5 rounded-full font-semibold">
+              {year >= 2026 ? "Projection Phase" : "Historical Phase"}
+            </span>
+          </div>
+
+          {/* Quantities list */}
+          <div className="space-y-1.5">
+            {payload.map((item: any) => {
+              const val = item.value;
+              if (val === undefined || val === null) return null;
+              return (
+                <div key={item.name} className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: item.stroke || item.color }}
+                    />
+                    <span className="text-slate-300 truncate text-[11px]">{item.name}</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-100">{val.toFixed(1)} mm</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CMIP6 Parameter Matrix Panel
+          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 mt-2">
+            <div className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider flex items-center gap-1">
+              <Info className="w-3.5 h-3.5 shrink-0" /> CMIP6 Scenario Metrics & Narratives
+            </div>
+            
+            <div className="space-y-2.5 text-[10px] text-slate-400 leading-normal">
+              <div>
+                <div className="flex justify-between items-center text-cyan-400 font-bold">
+                  <span>SSP1-2.6 (Sustainable Green Road)</span>
+                  <span className="font-mono">{data.cmip6_ssp126 ? `${data.cmip6_ssp126.toFixed(1)} mm` : "N/A"}</span>
+                </div>
+                <p className="text-slate-500 text-[9px] mt-[2px] leading-relaxed">
+                  Fulfills &lt;2°C Paris Accord target. Radiative forcing peaks at 2.6 W/m² by 2100 with massive global carbon mitigation.
+                </p>
+              </div>
+              <div>
+                <div className="flex justify-between items-center text-amber-500 font-bold">
+                  <span>SSP2-4.5 (Middle of the Road)</span>
+                  <span className="font-mono">{data.cmip6_ssp245 ? `${data.cmip6_ssp245.toFixed(1)} mm` : "N/A"}</span>
+                </div>
+                <p className="text-slate-500 text-[9px] mt-[2px] leading-relaxed">
+                  Standard trend continuation. Radiative forcing stabilizes at 4.5 W/m² under moderate climate policy compliance profiles.
+                </p>
+              </div>
+              <div>
+                <div className="flex justify-between items-center text-red-500 font-bold">
+                  <span>SSP5-8.5 (Fossil-Fuel Hostile Path)</span>
+                  <span className="font-mono">{data.cmip6_ssp585 ? `${data.cmip6_ssp585.toFixed(1)} mm` : "N/A"}</span>
+                </div>
+                <p className="text-slate-500 text-[9px] mt-[2px] leading-relaxed">
+                  Severe emission scenario. Radiative forcing reaches 8.5 W/m² by 2100. Heightened monsoon clouds and extreme storm surges.
+                </p>
+              </div>
+              {year && (
+                <div className="pt-2 border-t border-slate-900 text-[9px] text-indigo-300/85 italic">
+                  {year < 2010 
+                    ? "Based on official historical IMD gridded datasets." 
+                    : year < 2026 
+                      ? "Testing phase: Compare historical validation profiles."
+                      : `Bi-LSTM prediction active for ${selectedStation.name} station query.`
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+          */}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div id="visualizer_container" className="space-y-6">
@@ -78,6 +200,14 @@ export default function Visualizer({ selectedStation }: VisualizerProps) {
             >
               Urgent Meteorological Timeline (2026–2030)
             </button>
+
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-medium hover:bg-emerald-100 transition-all cursor-pointer shadow-2xs ml-auto md:ml-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export as CSV
+            </button>
           </div>
         </div>
 
@@ -107,7 +237,7 @@ export default function Visualizer({ selectedStation }: VisualizerProps) {
                 tick={{ fontSize: 9 }}
                 stroke="#94a3b8"
               />
-              <Tooltip contentStyle={{ fontSize: 11, borderRadius: 12, border: "1px solid #f1f5f9" }} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               
               {/* Highlight testing start boundary (2010) */}

@@ -20,6 +20,13 @@ export default function ColabExporter({ selectedStation }: ColabExporterProps) {
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
+# STATION PARAMETERS (DYNAMICALLY INJECTED)
+# ------------------------------------------------------------------------------
+station_name = "${selectedStation.name}"
+station_latitude = ${latStr}
+station_longitude = ${lonStr}
+
+# ------------------------------------------------------------------------------
 # STEP 1: Install Required Climatological and Deep Learning Libraries
 # ------------------------------------------------------------------------------
 !pip install -q imdlib pymannkendall pandas numpy scikit-learn tensorflow matplotlib seaborn xarray
@@ -63,8 +70,8 @@ print("✓ IMD Gridded Rainfall loaded successfully into NetCDF coordinate schem
 # Target Station: ${selectedStation.name}
 # Coordinates: Lat ${latStr}, Lon ${lonStr}
 # ------------------------------------------------------------------------------
-station_lat = ${latStr}
-station_lon = ${lonStr}
+station_lat = station_latitude
+station_lon = station_longitude
 
 # Extract time-series vector at nearest gridded point
 station_ds = ds.sel(lat=station_lat, lon=station_lon, method='nearest')
@@ -116,7 +123,7 @@ print(f"Sen's Slope: {mk_res.slope:.4f} mm/year")
 plt.figure(figsize=(11, 4))
 plt.plot(annual_monsoon.index.year, annual_monsoon['Rainfall_Observation_mm'], marker='o', color='#4f46e5', linewidth=2)
 plt.axhline(annual_monsoon['Rainfall_Observation_mm'].mean(), color='red', linestyle='--', label='Climatological Mean')
-plt.title("${selectedStation.name} Historical Monsoon Rainfall trend (1980 - 2025)")
+plt.title(f"{station_name} Historical Monsoon Rainfall trend (1980 - 2025)")
 plt.xlabel("Year")
 plt.ylabel("Annual Volume (mm)")
 plt.grid(True, alpha=0.3)
@@ -299,7 +306,7 @@ combined_monsoon_rainfall = pd.concat([historical_annual_monsoon, projected_annu
 plt.figure(figsize=(14, 7))
 sns.lineplot(x='year', y='Rainfall_Observation_mm', data=combined_monsoon_rainfall, marker='o')
 plt.axvline(x=2025.5, color='gray', linestyle='--', label='End of Historical Data')
-plt.title('${selectedStation.name} - Combined Historical and Projected Monsoon-Season Rainfall (1980-2030)')
+plt.title(f"{station_name} - Combined Historical and Projected Monsoon-Season Rainfall (1980-2030)")
 plt.xlabel('Year')
 plt.ylabel('Monsoon-Season Rainfall (mm)')
 plt.grid(True, linestyle='--', alpha=0.7)
