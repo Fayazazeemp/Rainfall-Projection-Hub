@@ -1,0 +1,6 @@
+{
+  "name": "Rainfall Projection Hub",
+  "description": "An AI‑driven rainfall projection and simulation dashboard over India, featuring interactive model tuning, Kerala monsoonal dynamics, and exportable ready-to-run Google Colab code.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
